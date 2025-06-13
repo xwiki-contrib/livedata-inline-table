@@ -45,6 +45,7 @@ import org.xwiki.rendering.syntax.Syntax;
 import org.xwiki.rendering.syntax.SyntaxType;
 import org.xwiki.rendering.transformation.MacroTransformationContext;
 import org.xwiki.rendering.transformation.TransformationManager;
+import org.xwiki.skinx.SkinExtension;
 import org.xwiki.stability.Unstable;
 
 import com.xpn.xwiki.XWikiContext;
@@ -62,6 +63,10 @@ import com.xpn.xwiki.XWikiContext;
 public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableMacroParameters>
 {
 
+    @Inject
+    @Named("ssrx")
+    private SkinExtension ssrx;
+    
     @Inject
     private TransformationManager transformationManager;
 
@@ -112,6 +117,8 @@ public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableM
     public List<Block> execute(LiveDataInlineTableMacroParameters parameters, String content,
         MacroTransformationContext context) throws MacroExecutionException
     {
+        this.ssrx.use("css/livedata-inline-table-macro.css");
+        
         // When in WYSIWYG edit mode, it should be possible to edit underlying table using the WYSIWYG.
         // When in view mode, we should use liveData to display the table.
         // Check if we are in edit mode.

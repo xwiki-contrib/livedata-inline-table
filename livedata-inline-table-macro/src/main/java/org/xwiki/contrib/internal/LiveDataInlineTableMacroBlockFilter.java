@@ -289,8 +289,9 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
             ldJson = buildJSON(Map.of("query",
                 Map.of("properties", toArray(IntegerRange.of(0, fields.size() - 1)), "source",
                     Map.of(ID, InlineTableLiveDataSource.ID, "entries", entriesB64), "offset", 0, "limit", 10),
-                "meta", Map.of("propertyDescriptors", getPropertyDescriptors(fields, fieldsTypes), "defaultDisplayer",
-                    "html")));
+                "meta",
+                Map.of("propertyDescriptors", getPropertyDescriptors(fields, fieldsTypes), "defaultDisplayer", "html",
+                    "pagination", Map.of("showEntryRange", false, "showNextPrevious", false, "showFirstLast", false))));
         } catch (JsonProcessingException e) {
             throw new LiveDataInlineTableMacroRuntimeException("Failed to serialize the LiveData parameters.", e);
         }
@@ -302,8 +303,10 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         Block liveDataBlock = new MacroBlock("liveData",
             id == null ? Collections.emptyMap() : Map.of(ID, parameters.getId()), ldJson, context.isInline());
 
-        // TODO: Wrap the LiveData call in a div.
-        return Collections.singletonList(liveDataBlock);
+        // Wrap the LiveData call in a div for styling purposes.
+        Block inlineTableWrapper = new GroupBlock(Collections.singletonList(liveDataBlock),
+            Collections.singletonMap("class", "livedata-inline-table_macro"));
+        return Collections.singletonList(inlineTableWrapper);
     }
 
     private int[] toArray(IntegerRange range)

@@ -19,6 +19,8 @@
  */
 package org.xwiki.contrib.internal;
 
+import java.util.List;
+
 import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -49,6 +51,11 @@ public class InlineTableLiveDataConfigurationProvider implements Provider<LiveDa
         LiveDataPaginationConfiguration pagination = new LiveDataPaginationConfiguration();
         // We do not support pagination and display the whole table directly.
         pagination.setShowPageSizeDropdown(false);
+        pagination.setShowEntryRange(false);
+        pagination.setShowNextPrevious(false);
+        pagination.setShowFirstLast(false);
+        pagination.setPageSizes(List.of(1000000));
+        pagination.setMaxShownPages(1);
         meta.setPagination(pagination);
         // LiveData expects one of the fields to be a unique id. We introduce one ourselves that is not displayed.
         LiveDataEntryDescriptor entryDescriptor = new LiveDataEntryDescriptor();
