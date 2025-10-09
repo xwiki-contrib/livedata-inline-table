@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.xwiki.contrib</groupId>
     <artifactId>livedata-inline-table</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>org.xwiki.contrib</groupId>
   <artifactId>livedata-inline-table-macro</artifactId>
