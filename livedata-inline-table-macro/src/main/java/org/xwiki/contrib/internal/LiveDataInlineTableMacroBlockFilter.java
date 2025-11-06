@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 import javax.inject.Provider;
@@ -73,6 +75,14 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
     private static final String DATE = "date";
 
     private static final String STRING = "String";
+
+    private static final String STYLE = "style";
+
+    private static final String CLASS = "class";
+
+    private static final String LIT_CELL_CLASS = "xwiki-livedata-inline-table-cell";
+
+    private static final Pattern WIDTH_STRIPPER = Pattern.compile("(^|;)(\\s*width\\s*:[^;]*)");
 
     private static final String DEFAULT_FORMAT = "yyyy/MM/dd HH:mm";
 
@@ -450,9 +460,27 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
                     // We need to render the content of the cell as a string so that we can pass it to LiveData.
                     WikiPrinter cellPrinter = new DefaultWikiPrinter();
 
-                    // We need to run transformations in case there is an other livedata-inline-table call inside the
+                    // We need to run transformations in case there is another livedata-inline-table call inside the
                     // cell.
-                    Block cellGroup = new GroupBlock(cell.getChildren(), cell.getParameters());
+
+                    // We have to fiddle with the cell's attributes...
+                    Map<String, String> parsedParameters = new HashMap<>(cell.getParameters());
+
+                    // TODO: Clean up style attribute.
+                    if (parsedParameters.containsKey(STYLE)) {
+                        String styleAttr = parsedParameters.get(STYLE);
+
+                        // The strategy here is to minimally parse the CSS and remove any width property.
+                        Matcher matcher = WIDTH_STRIPPER.matcher(styleAttr);
+
+                        parsedParameters.put("STYLE", matcher.replaceAll("$1"));
+                    }
+
+                    // Update class parameter with our own class.
+                    String classAttr = parsedParameters.getOrDefault(CLASS, "");
+                    parsedParameters.put(CLASS, LIT_CELL_CLASS + " " + classAttr);
+
+                    Block cellGroup = new GroupBlock(cell.getChildren(), parsedParameters);
                     logger.debug("Running cell transformations.");
                     try {
                         transformationManager.performTransformations(cellGroup,
