@@ -68,6 +68,10 @@ public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableM
     private SkinExtension ssrx;
     
     @Inject
+    @Named("jsrx")
+    private SkinExtension jsrx;
+    
+    @Inject
     private TransformationManager transformationManager;
 
     @Inject
@@ -118,6 +122,7 @@ public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableM
         MacroTransformationContext context) throws MacroExecutionException
     {
         this.ssrx.use("css/livedata-inline-table-macro.css");
+        this.jsrx.use("js/livedata-inline-table-macro.js");
         
         // When in WYSIWYG edit mode, it should be possible to edit underlying table using the WYSIWYG.
         // When in view mode, we should use liveData to display the table.

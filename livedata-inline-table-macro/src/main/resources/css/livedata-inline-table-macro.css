@@ -1,2 +1,10 @@
-.livedata-inline-table_macro .livedata-topbar {display: none !important;}
-.livedata-inline-table_macro .livedata-bottombar {display: none !important;}
+/* Pagination fix. See XLIT-18. */
+.livedata-inline-table_macro .livedata-topbar .livedata-pagination {
+    display: none !important;
+
+}
+
+.livedata-inline-table_macro .livedata-bottombar .livedata-pagination {
+    display: none !important;
+
+}
