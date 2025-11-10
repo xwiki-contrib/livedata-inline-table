@@ -29,7 +29,7 @@
   <artifactId>livedata-inline-table</artifactId>
   <packaging>pom</packaging>
   <name>Inline Table Livedata - Parent POM</name>
-  <version>1.0.3-SNAPSHOT</version>
+  <version>1.0.3</version>
   <properties>
     <xwiki.release.jira.skip>false</xwiki.release.jira.skip>
     <!-- If the project is hosted on http://jira.xwiki.org, only the id needs to be provided. -->
@@ -46,7 +46,7 @@
     <connection>scm:git:git://github.com/xwiki-contrib/livedata-inline-table.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/livedata-inline-table.git</developerConnection>
     <url>https://github.com/xwiki-contrib/livedata-inline-table</url>
-    <tag>HEAD</tag>
+    <tag>livedata-inline-table-1.0.3</tag>
   </scm>
   <modules>
     <module>livedata-inline-table-macro</module>
