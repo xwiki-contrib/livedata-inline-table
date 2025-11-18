@@ -45,6 +45,7 @@ import org.xwiki.rendering.syntax.Syntax;
 import org.xwiki.rendering.syntax.SyntaxType;
 import org.xwiki.rendering.transformation.MacroTransformationContext;
 import org.xwiki.rendering.transformation.TransformationManager;
+import org.xwiki.script.ScriptContextManager;
 import org.xwiki.skinx.SkinExtension;
 import org.xwiki.stability.Unstable;
 
@@ -100,6 +101,9 @@ public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableM
     @Inject
     private Logger logger;
 
+    @Inject
+    private ScriptContextManager scriptContextManager;
+
     /**
      * Constructor.
      */
@@ -126,22 +130,19 @@ public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableM
         
         // When in WYSIWYG edit mode, it should be possible to edit underlying table using the WYSIWYG.
         // When in view mode, we should use liveData to display the table.
-        // Check if we are in edit mode.
-        // See https://www.xwiki.org/xwiki/bin/view/FAQ/How%20to%20write%20Macro%20code%20for%20the%20edit%20mode
-        Syntax targetSyntax = context.getTransformationContext().getTargetSyntax();
         XWikiContext xcontext = xcontextProvider.get();
-        String renderSyntax = "html/5.0";
 
-        if (targetSyntax != null) {
-            SyntaxType targetSyntaxType = targetSyntax.getType();
-            if (SyntaxType.ANNOTATED_HTML.equals(targetSyntaxType)
-                || SyntaxType.ANNOTATED_XHTML.equals(targetSyntaxType)) {
-                return parseContent(content, context);
-            }
-            renderSyntax = targetSyntax.toIdString();
+        if (isEdit(context)) {
+            return parseContent(content, context);
         }
         if ("get".equals(xcontext.getAction()) || "edit".equals(xcontext.getAction())) {
             return parseContent(content, context);
+        }
+
+        Syntax targetSyntax = context.getTransformationContext().getTargetSyntax();
+        String renderSyntax = "html/5.0";
+        if (targetSyntax != null) {
+            renderSyntax = targetSyntax.toIdString();
         }
 
         try {
@@ -184,4 +185,22 @@ public class LiveDataInlineTableMacro extends AbstractMacro<LiveDataInlineTableM
         return Collections.singletonList(new MetaDataBlock(children, this.getNonGeneratedContentMetaData()));
     }
 
+    private boolean isEdit(MacroTransformationContext context)
+    {
+        // By default, we use the recommended solution cf:
+        // https://www.xwiki.org/xwiki/bin/view/FAQ/How%20to%20write%20Macro%20code%20for%20the%20edit%20mode
+        // And if we are in the version impacted by https://jira.xwiki.org/browse/XWIKI-22738
+        // We fall back on the suggested solution by this comment:
+        // https://jira.xwiki.org/browse/XWIKI-22738?focusedId=120587&
+        //     page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-120587
+        Syntax syntax = context.getTransformationContext().getTargetSyntax();
+        if (syntax == null) {
+            String syntaxStr = (String) scriptContextManager.getScriptContext().getAttribute("syntaxType");
+            return (syntaxStr != null) && (syntaxStr.equals("annotatedhtml") || syntaxStr.equals("annotatedxhtml"));
+        } else {
+            SyntaxType targetSyntaxType = syntax.getType();
+            return (SyntaxType.ANNOTATED_HTML.equals(targetSyntaxType)
+                || SyntaxType.ANNOTATED_XHTML.equals(targetSyntaxType));
+        }
+    }
 }
