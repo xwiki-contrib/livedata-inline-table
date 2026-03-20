@@ -49,6 +49,7 @@ import org.xwiki.rendering.block.TableBlock;
 import org.xwiki.rendering.block.TableCellBlock;
 import org.xwiki.rendering.block.TableHeadCellBlock;
 import org.xwiki.rendering.block.TableRowBlock;
+import org.xwiki.rendering.block.match.ClassBlockMatcher;
 import org.xwiki.rendering.renderer.BlockRenderer;
 import org.xwiki.rendering.renderer.printer.DefaultWikiPrinter;
 import org.xwiki.rendering.renderer.printer.WikiPrinter;
@@ -413,12 +414,10 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         List<TableRowBlock> rows = new ArrayList<>();
         int propertiesCount = 0;
 
-        for (Block child : table.getChildren()) {
-            if (child instanceof TableRowBlock) {
-                TableRowBlock row = (TableRowBlock) child;
-                rows.add(row);
-                propertiesCount = Math.max(propertiesCount, row.getChildren().size());
-            }
+        for (Block child : table.getBlocks(new ClassBlockMatcher(TableRowBlock.class), Block.Axes.DESCENDANT)) {
+            TableRowBlock row = (TableRowBlock) child;
+            rows.add(row);
+            propertiesCount = Math.max(propertiesCount, row.getChildren().size());
         }
         logger.debug("Detected " + propertiesCount + " rows.");
 
@@ -440,80 +439,79 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         for (TableRowBlock row : rows) {
             Map<String, Object> entry = new HashMap<>();
             int i = 0;
-            for (Block child : row.getChildren()) {
-                if (child instanceof TableCellBlock) {
-                    logger.debug("Parsing a cell of column: " + i);
-                    TableCellBlock cell = (TableCellBlock) child;
-                    WikiPrinter textPrinter = new DefaultWikiPrinter();
+            for (Block child : row.getBlocks(new ClassBlockMatcher(TableCellBlock.class), Block.Axes.DESCENDANT)) {
+                logger.debug("Parsing a cell of column: " + i);
+                TableCellBlock cell = (TableCellBlock) child;
+                WikiPrinter textPrinter = new DefaultWikiPrinter();
 
-                    logger.debug("Rendering cell as text.");
-                    plainTextRenderer.render(cell, textPrinter);
+                logger.debug("Rendering cell as text.");
+                plainTextRenderer.render(cell, textPrinter);
 
-                    logger.debug("Rendered cell as text: " + textPrinter.toString());
-                    if (entries.isEmpty() && child instanceof TableHeadCellBlock) {
-                        properties.set(i, textPrinter.toString());
-                        inlineHeading = true;
-                        logger.debug("Detected inline heading: " + textPrinter.toString());
-                    }
+                logger.debug("Rendered cell as text: " + textPrinter.toString());
+                if (entries.isEmpty() && child instanceof TableHeadCellBlock) {
+                    properties.set(i, textPrinter.toString());
+                    inlineHeading = true;
+                    logger.debug("Detected inline heading: " + textPrinter.toString());
+                }
 
-                    // We need to render the content of the cell as a string so that we can pass it to LiveData.
-                    WikiPrinter cellPrinter = new DefaultWikiPrinter();
+                // We need to render the content of the cell as a string so that we can pass it to LiveData.
+                WikiPrinter cellPrinter = new DefaultWikiPrinter();
 
-                    // We need to run transformations in case there is another livedata-inline-table call inside the
-                    // cell.
+                // We need to run transformations in case there is another livedata-inline-table call inside the
+                // cell.
 
-                    // We have to fiddle with the cell's attributes...
-                    Map<String, String> parsedParameters = new HashMap<>(cell.getParameters());
+                // We have to fiddle with the cell's attributes...
+                Map<String, String> parsedParameters = new HashMap<>(cell.getParameters());
 
 
-                    // Update class parameter with our own class.
-                    String classAttr = parsedParameters.getOrDefault(CLASS, "");
-                    parsedParameters.put(CLASS, LIT_CELL_CLASS + " " + classAttr);
+                // Update class parameter with our own class.
+                String classAttr = parsedParameters.getOrDefault(CLASS, "");
+                parsedParameters.put(CLASS, LIT_CELL_CLASS + " " + classAttr);
 
-                    Block cellGroup = new GroupBlock(cell.getChildren(), parsedParameters);
-                    logger.debug("Running cell transformations.");
-                    try {
-                        transformationManager.performTransformations(cellGroup,
-                            this.context.getTransformationContext());
-                    } catch (TransformationException e) {
-                        throw new LiveDataInlineTableMacroRuntimeException("Failed to transform cell content.", e);
-                    }
+                Block cellGroup = new GroupBlock(cell.getChildren(), parsedParameters);
+                logger.debug("Running cell transformations.");
+                try {
+                    transformationManager.performTransformations(cellGroup,
+                        this.context.getTransformationContext());
+                } catch (TransformationException e) {
+                    throw new LiveDataInlineTableMacroRuntimeException("Failed to transform cell content.", e);
+                }
 
-                    logger.debug("Rendering cell as html.");
-                    richTextRenderer.render(cellGroup, cellPrinter);
-                    logger.debug("Rendered cell as html: " + cellPrinter.toString());
-                    entry.put("" + i, cellPrinter.toString());
-                    entry.put("text." + i, textPrinter.toString());
-                    if (fieldsTypes.get(i).equals(DATE)) {
-                        logger.debug("A date is expected, trying to parse.");
-                        String datetimeString = "";
-                        Object timestamp = "";
-                        if (!textPrinter.toString().isBlank()) {
+                logger.debug("Rendering cell as html.");
+                richTextRenderer.render(cellGroup, cellPrinter);
+                logger.debug("Rendered cell as html: " + cellPrinter.toString());
+                entry.put("" + i, cellPrinter.toString());
+                entry.put("text." + i, textPrinter.toString());
+                if (fieldsTypes.get(i).equals(DATE)) {
+                    logger.debug("A date is expected, trying to parse.");
+                    String datetimeString = "";
+                    Object timestamp = "";
+                    if (!textPrinter.toString().isBlank()) {
 
-                            for (int j = 0; j < this.dateFormats.length; j++) {
-                                try {
-                                    logger.debug("Trying to parse date using format: " + this.dateFormats[j]);
+                        for (int j = 0; j < this.dateFormats.length; j++) {
+                            try {
+                                logger.debug("Trying to parse date using format: " + this.dateFormats[j]);
 
-                                    Locale locale = this.contextProvider.get().getLocale();
-                                    SimpleDateFormat parser = new SimpleDateFormat(this.dateFormats[j], locale);
-                                    parser.setLenient(true);
+                                Locale locale = this.contextProvider.get().getLocale();
+                                SimpleDateFormat parser = new SimpleDateFormat(this.dateFormats[j], locale);
+                                parser.setLenient(true);
 
-                                    Date date = parser.parse(textPrinter.toString());
-                                    datetimeString = new SimpleDateFormat(this.dateFormats[j], locale).format(date);
-                                    timestamp = date.toInstant().getEpochSecond();
-                                    logger.debug("Parsed date: " + datetimeString);
-                                    logger.debug("Parsed unix timestamp: " + timestamp);
-                                    entry.put("date." + i, timestamp);
-                                    break;
-                                } catch (ParseException e) {
-                                    logger.debug("Failed to parse '" + textPrinter.toString() + "' using format "
-                                        + this.dateFormats[j], e);
-                                }
+                                Date date = parser.parse(textPrinter.toString());
+                                datetimeString = new SimpleDateFormat(this.dateFormats[j], locale).format(date);
+                                timestamp = date.toInstant().getEpochSecond();
+                                logger.debug("Parsed date: " + datetimeString);
+                                logger.debug("Parsed unix timestamp: " + timestamp);
+                                entry.put("date." + i, timestamp);
+                                break;
+                            } catch (ParseException e) {
+                                logger.debug("Failed to parse '" + textPrinter.toString() + "' using format "
+                                    + this.dateFormats[j], e);
                             }
                         }
                     }
-                    i++;
                 }
+                i++;
+
             }
             entries.add(entry);
         }
@@ -533,7 +531,7 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         logger.debug("Detecting the types of columns.");
         for (TableRowBlock row : rows) {
             int i = 0;
-            for (Block child : row.getChildren()) {
+            for (Block child : row.getBlocks(new ClassBlockMatcher(TableCellBlock.class), Block.Axes.DESCENDANT)) {
                 if (child instanceof TableCellBlock && !(child instanceof TableHeadCellBlock)) {
                     TableCellBlock cell = (TableCellBlock) child;
                     WikiPrinter textPrinter = new DefaultWikiPrinter();
