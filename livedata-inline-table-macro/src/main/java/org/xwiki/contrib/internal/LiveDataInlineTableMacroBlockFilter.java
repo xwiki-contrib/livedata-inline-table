@@ -49,7 +49,6 @@ import org.xwiki.rendering.block.TableBlock;
 import org.xwiki.rendering.block.TableCellBlock;
 import org.xwiki.rendering.block.TableHeadCellBlock;
 import org.xwiki.rendering.block.TableRowBlock;
-import org.xwiki.rendering.block.match.ClassBlockMatcher;
 import org.xwiki.rendering.renderer.BlockRenderer;
 import org.xwiki.rendering.renderer.printer.DefaultWikiPrinter;
 import org.xwiki.rendering.renderer.printer.WikiPrinter;
@@ -401,6 +400,19 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         return objectMapper.writeValueAsString(object);
     }
 
+    private <T> List<T> getDescendantsExcludeTableBlock(Block block, Class<? extends Block> type)
+    {
+        List<T> result = new ArrayList<>(block.getChildren().size());
+        for (Block child : block.getChildren()) {
+            if (type.isAssignableFrom(child.getClass())) {
+                result.add((T) child);
+            } else if (!(child instanceof TableBlock)) {
+                result.addAll(getDescendantsExcludeTableBlock(child, type));
+            }
+        }
+        return result;
+    }
+
     /**
      * Read a table and extract entries from it.
      * 
@@ -413,9 +425,8 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         // Extract the rows from the table while counting the number of properties.
         List<TableRowBlock> rows = new ArrayList<>();
         int propertiesCount = 0;
-
-        for (Block child : table.getBlocks(new ClassBlockMatcher(TableRowBlock.class), Block.Axes.DESCENDANT)) {
-            TableRowBlock row = (TableRowBlock) child;
+        List<TableRowBlock> rowBlocks = getDescendantsExcludeTableBlock(table, TableRowBlock.class);
+        for (TableRowBlock row : rowBlocks) {
             rows.add(row);
             propertiesCount = Math.max(propertiesCount, row.getChildren().size());
         }
@@ -439,16 +450,16 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         for (TableRowBlock row : rows) {
             Map<String, Object> entry = new HashMap<>();
             int i = 0;
-            for (Block child : row.getBlocks(new ClassBlockMatcher(TableCellBlock.class), Block.Axes.DESCENDANT)) {
+            List<TableCellBlock>  cells = getDescendantsExcludeTableBlock(row, TableCellBlock.class);
+            for (TableCellBlock cell : cells) {
                 logger.debug("Parsing a cell of column: " + i);
-                TableCellBlock cell = (TableCellBlock) child;
                 WikiPrinter textPrinter = new DefaultWikiPrinter();
 
                 logger.debug("Rendering cell as text.");
                 plainTextRenderer.render(cell, textPrinter);
 
                 logger.debug("Rendered cell as text: " + textPrinter.toString());
-                if (entries.isEmpty() && child instanceof TableHeadCellBlock) {
+                if (entries.isEmpty() && cell instanceof TableHeadCellBlock) {
                     properties.set(i, textPrinter.toString());
                     inlineHeading = true;
                     logger.debug("Detected inline heading: " + textPrinter.toString());
@@ -531,9 +542,9 @@ public class LiveDataInlineTableMacroBlockFilter implements BlockFilter
         logger.debug("Detecting the types of columns.");
         for (TableRowBlock row : rows) {
             int i = 0;
-            for (Block child : row.getBlocks(new ClassBlockMatcher(TableCellBlock.class), Block.Axes.DESCENDANT)) {
-                if (child instanceof TableCellBlock && !(child instanceof TableHeadCellBlock)) {
-                    TableCellBlock cell = (TableCellBlock) child;
+            List<TableCellBlock>   cells = getDescendantsExcludeTableBlock(row, TableCellBlock.class);
+            for (TableCellBlock cell : cells) {
+                if (!(cell instanceof TableHeadCellBlock)) {
                     WikiPrinter textPrinter = new DefaultWikiPrinter();
                     plainTextRenderer.render(cell, textPrinter);
 
